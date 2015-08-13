@@ -9,7 +9,7 @@ DPDK-like functions over RMDA.
  * libnuma-dev
 
 ## Design
-1. `rdma-dpdk` performs all communication using SEND/RECV verbs over RDMA's UD transport. This provides performance that is comparable to an RDMA WRITE-based implementation, but is more scalable.
+1. `rdma-dpdk` performs all communication using SEND/RECV verbs over RDMA's UD transport. This provides performance that is comparable to an RDMA WRITE-based implementation, but is more scalable. Read our [paper](http://www.cs.cmu.edu/~akalia/doc/sigcomm14/herd_readable.pdf) for more details.
 2. `rdma-dpdk` uses a memcached instance as a central registry to store information about QPs. This registry is only contacted during connection setup; `rdma-dpdk` is not limited by memcached's performance.
 
 ## Example run
@@ -33,3 +33,4 @@ complete.
 4. At all client machines, run `run-machine.sh`.  The clients will get the
 servers' QP identifiers from the central memcached server.  Any number of 
 client machines can be added to the server this way.
+
