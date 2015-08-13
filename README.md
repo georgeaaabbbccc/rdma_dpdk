@@ -23,6 +23,12 @@ information about QPs. This registry is only contacted during connection setup;
 
 ## Example run
 
+Follow these instructions to run the provided example program (`main.c`). This
+program runs multiple server threads on 1 server machine, and multiple client
+threads on possibly many client machines. Client threads send messages to the
+server threads. On receiving a message from a client, the server thread sends
+a message back to it.
+
 1. Increase Linux's limit on the amount of shared memory that a process is
 allowed to use. From the scripts folder:
 ```
@@ -35,15 +41,11 @@ uses hugepages for its SEND and RECV regions. From the scrips folder:
     ./hugepages-create.sh 0 512
 ```
 
-3. Update `HRD_REGISTRY_IP` in `hrd.h` and `hrd_registry_ip` in `run_servers.sh`
-to the IP address of a machine running a memcached server. Run memcached using
-```
-    ./memcached -l 0.0.0.0`
- ```
+3. At all machines, set the HRD\_REGISTRY\_IP environment variable to the IP
+address or hostname of the server machine.
 
-4. At all server machines, run `run-servers.sh`.  The server threads will
-register their QPs with the central memcached server; wait for this to
-complete.
+4. At the server machine, run `run-servers.sh`.  The server threads will
+register their QPs with the memcached server.
 
 5. At all client machines, run `run-machine.sh`.  The clients will get the
 servers' QP identifiers from the central memcached server.  Any number of 
