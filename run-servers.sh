@@ -10,28 +10,30 @@ shm-rm.sh 1>/dev/null 2>/dev/null
 
 num_server_threads=10
 num_client_machines=1
-registry_ip="128.2.211.34"
+: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
 
-blue "Reset server registry"
-# This ssh needs to be synchronous
-ssh -oStrictHostKeyChecking=no $registry_ip "
-	touch servers;
-	memcflush --servers=localhost;
-	memccp --servers=localhost servers"
+# Check if memccp and memcached are installed
+if ! hash memccp 2>/dev/null; then
+	blue "Please install memccp"
+	exit
+fi
+
+if ! hash memcached 2>/dev/null; then
+	blue "Please install memcached"
+	exit
+fi
+
+blue "Reset QP registry"
+sudo killall memcached
+memcached -l 0.0.0.0 &
+sleep 1	# Wait for memcached to initialize before inserting a key
+touch rdma_dpdk_servers
+
+# This inserts a mapping <"rdma_dpdk_servers" -> NULL> into the memcached
+# instance. Now we can append to key "rdma_dpdk_servers".
+memccp --servers=localhost rdma_dpdk_servers
 
 blue "Starting $num_server_threads server threads"
 
-sudo LD_LIBRARY_PATH=/usr/local/lib/ ./main $num_server_threads server &
+sudo -E LD_LIBRARY_PATH=/usr/local/lib/ ./main $num_server_threads server &
 
-exit
-sleep 1
-
-for i in `seq 1 $num_client_machines`; do
-	blue "Starting client $client_id"
-	mc=`expr $i + 1`
-	client_id=`expr $mc - 2`
-	ssh -oStrictHostKeyChecking=no node-$mc.RDMA.fawn.apt.emulab.net "
-		cd mica-intel/ib-dpdk; 
-		./run-remote.sh $client_id" &
-	sleep .5
-done

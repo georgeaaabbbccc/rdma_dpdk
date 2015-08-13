@@ -11,4 +11,4 @@ num_threads=10			#processes per client machine
 
 blue "Running $num_threads client threads"
 
-sudo LD_LIBRARY_PATH=/usr/local/lib/ ./main $num_threads &
+sudo -E LD_LIBRARY_PATH=/usr/local/lib/ ./main $num_threads &

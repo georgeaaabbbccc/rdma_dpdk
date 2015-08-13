@@ -5,9 +5,9 @@ DPDK-like functions over RMDA.
 
 ## Required libraries and software
  * RDMA drivers (e.g., Mellanox OFED for Mellanox HCAs)
- * memcached
- * libmemcached-dev
+ * memcached, libmemcached-dev, libmemcached-tools
  * libnuma-dev
+ * This has only been tested on Ubuntu 12.04+
 
 ## Design
 1. `rdma-dpdk` performs all communication using SEND/RECV verbs over RDMA's UD transport. This provides performance that is comparable to an RDMA WRITE-based implementation, but is more scalable. Read our [paper](http://www.cs.cmu.edu/~akalia/doc/sigcomm14/herd_readable.pdf) for more details.
@@ -15,23 +15,29 @@ DPDK-like functions over RMDA.
 
 ## Example run
 
-1. Create 512 hugepages on all experiment machines.  The HRD library 
+1. Increase Linux's limit on the amount of shared memory that a process is
+allowed to use. From the scripts folder:
+```
+    ./shm-incr.sh
+```
+
+2. Create 512 hugepages on all experiment machines.  The HRD library 
 uses hugepages for its SEND and RECV regions. From the scrips folder:
 ```
     ./hugepages-create.sh 0 512
 ```
 
-2. Update `HRD_REGISTRY_IP` in `hrd.h` and `hrd_registry_ip` in `run_servers.sh`
+3. Update `HRD_REGISTRY_IP` in `hrd.h` and `hrd_registry_ip` in `run_servers.sh`
 to the IP address of a machine running a memcached server. Run memcached using
 ```
     ./memcached -l 0.0.0.0`
  ```
 
-3. At all server machines, run `run-servers.sh`.  The server threads will
+4. At all server machines, run `run-servers.sh`.  The server threads will
 register their QPs with the central memcached server; wait for this to
 complete.
 
-4. At all client machines, run `run-machine.sh`.  The clients will get the
+5. At all client machines, run `run-machine.sh`.  The clients will get the
 servers' QP identifiers from the central memcached server.  Any number of 
 client machines can be added to the server this way.
 
