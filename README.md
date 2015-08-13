@@ -45,7 +45,7 @@ uses hugepages for its SEND and RECV regions. From the scrips folder:
     ./hugepages-create.sh 0 512
 ```
 
-3. At all machines, set the HRD\_REGISTRY\_IP environment variable to the IP
+3. At all machines, set the `HRD_REGISTRY_IP` environment variable to the IP
 address or hostname of the server machine.
 
 4. At the server machine, run `run-servers.sh`.  The server threads will
