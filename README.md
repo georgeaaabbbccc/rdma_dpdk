@@ -3,9 +3,9 @@ rdma-dpdk
 
 This framework provides [DPDK](http://dpdk.org)-like functions over RDMA.
 Mellanox has released a [DPDK PMD](http://dpdk.org/doc/guides/nics/mlx4.html),
-but it supports only ConnectX-3 Ethernet NICs. This library ideally works with
-all RDMA NICs. It has been tested with ConnectX-3 and Connect-IB InfiniBand
-NICs.
+but it supports only ConnectX-3 Ethernet NICs (not InfiniBand). This library
+ideally works with **all** RDMA NICs. It has been tested with ConnectX-3 and
+Connect-IB InfiniBand NICs.
 
 ## Required libraries and software
  * RDMA drivers (e.g., Mellanox OFED for Mellanox HCAs)
