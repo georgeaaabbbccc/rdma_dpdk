@@ -38,6 +38,8 @@ void *run_server(void *arg)
 		
 		for(i = 0; i < num_polls; i ++) {
 			tries = 0;
+
+			/* Send the packet back to where it came from */
 			rx_pkts_burst[i]->d_lid = rx_pkts_burst[i]->s_lid;
 			rx_pkts_burst[i]->d_qpn = rx_pkts_burst[i]->s_qpn;
 

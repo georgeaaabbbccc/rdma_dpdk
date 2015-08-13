@@ -10,8 +10,16 @@ DPDK-like functions over RMDA.
  * This has only been tested on Ubuntu 12.04+
 
 ## Design
-1. `rdma-dpdk` performs all communication using SEND/RECV verbs over RDMA's UD transport. This provides performance that is comparable to an RDMA WRITE-based implementation, but is more scalable. Read our [paper](http://www.cs.cmu.edu/~akalia/doc/sigcomm14/herd_readable.pdf) for more details.
-2. `rdma-dpdk` uses a memcached instance as a central registry to store information about QPs. This registry is only contacted during connection setup; `rdma-dpdk` is not limited by memcached's performance.
+
+1. `rdma-dpdk` performs all communication using SEND/RECV verbs over RDMA's
+UD transport. This provides performance that is comparable to an RDMA
+WRITE-based implementation, but is more scalable. Read our
+[paper](http://www.cs.cmu.edu/~akalia/doc/sigcomm14/herd_readable.pdf) for
+more details.
+
+2. `rdma-dpdk` uses a memcached instance as a central registry to store
+information about QPs. This registry is only contacted during connection setup;
+`rdma-dpdk` is not limited by memcached's performance.
 
 ## Example run
 
