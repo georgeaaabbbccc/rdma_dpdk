@@ -51,7 +51,7 @@ address or hostname of the server machine.
 4. At the server machine, run `run-servers.sh`.  The server threads will
 register their QPs with the registry.
 
-5. At all client machines, run `run-machine.sh`.  The clients will get the
+5. At client machine `i`, run `run-machine.sh i`.  The clients will get the
 servers' QP identifiers from the registry.  Any number of client machines can
 be added to the server this way.
 
