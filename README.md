@@ -49,9 +49,9 @@ uses hugepages for its SEND and RECV regions. From the scrips folder:
 address or hostname of the server machine.
 
 4. At the server machine, run `run-servers.sh`.  The server threads will
-register their QPs with the memcached server.
+register their QPs with the registry.
 
 5. At all client machines, run `run-machine.sh`.  The clients will get the
-servers' QP identifiers from the central memcached server.  Any number of 
-client machines can be added to the server this way.
+servers' QP identifiers from the registry.  Any number of client machines can
+be added to the server this way.
 
