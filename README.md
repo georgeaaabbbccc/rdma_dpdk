@@ -3,8 +3,9 @@ rdma-dpdk
 
 DPDK-like functions over RMDA.
 
-## Required libraries
+## Required libraries and software
  * RDMA drivers (e.g., Mellanox OFED for Mellanox HCAs)
+ * memcached
  * libmemcached-dev
  * libnuma-dev
 
