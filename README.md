@@ -8,10 +8,10 @@ ideally works with **all** RDMA NICs. It has been tested with ConnectX-3 and
 Connect-IB InfiniBand NICs.
 
 ## Required libraries and software
- * RDMA drivers (e.g., Mellanox OFED for Mellanox HCAs)
+ * Mellanox OFED 2.4+
  * memcached, libmemcached-dev, libmemcached-tools
  * libnuma-dev
- * This has only been tested on Ubuntu 12.04+
+ * Ubuntu 12.04+
 
 ## Design
 
