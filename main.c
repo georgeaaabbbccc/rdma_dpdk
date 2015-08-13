@@ -9,7 +9,7 @@ void *run_server(void *arg)
 	int i;
 	int tid = *(int *) arg;
 	struct hrd_ctrl_blk *cb = hrd_init_ctrl_blk(tid, 0, 0);
-	hrd_register_qp(cb, HRD_REGITRY_IP);
+	hrd_register_qp(cb);
 
 	struct timespec start, end;
 	long long cur_send_count = 0, prev_send_count = 0;
@@ -54,7 +54,7 @@ void *run_server(void *arg)
 			int sends_done = cur_send_count - prev_send_count;
 			double seconds = (end.tv_sec - start.tv_sec) +
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
-			fprintf(stderr, "Thread %d: IOPS: %f, avg. recv. batch size = %d\n", tid, 
+			fprintf(stderr, "Thread %d: IOPS: %f, avg. rx batch = %d\n", tid, 
 				sends_done / seconds, sends_done / num_poll_cq_calls);
 
 			clock_gettime(CLOCK_REALTIME, &start);
@@ -68,7 +68,7 @@ void *run_client(void *arg)
 {
 	int tid = *(int *) arg;
 	struct hrd_ctrl_blk *cb = hrd_init_ctrl_blk(tid, 0, 0);
-	cb->num_remote_qps = hrd_get_registered_qps(cb, HRD_REGITRY_IP);
+	cb->num_remote_qps = hrd_get_registered_qps(cb);
 
 	struct timespec start, end;		//Sampled once every ITERS_PER_MEASUREMENT
 	struct timespec op_start[WS_CLIENT], op_end[WS_CLIENT];
@@ -77,7 +77,7 @@ void *run_client(void *arg)
 	int num_resp = 0, num_req = 0, num_req_ = 0, sn;
 	struct hrd_mbuf *tx_pkt, *rx_pkt;
 
-	// Initialize the tx and rx mbufs
+	/* Initialize the tx and rx mbufs */
 	tx_pkt = malloc(sizeof(struct hrd_mbuf));
 	rx_pkt = malloc(sizeof(struct hrd_mbuf));
 
@@ -85,7 +85,7 @@ void *run_client(void *arg)
 	clock_gettime(CLOCK_REALTIME, &start);
 
 	while(1) {
-		// Performance measurement
+		/* Performance measurement */
 		if((num_req & M_1_) == M_1_ && num_req != 0) {
 			fprintf(stderr, "\nThread %d completed %d requests\n", tid, num_req);
 			clock_gettime(CLOCK_REALTIME, &end);
@@ -117,9 +117,9 @@ void *run_client(void *arg)
 		num_req ++;
 
 		if(num_req - num_resp == WS_CLIENT) {
-			int rws = num_resp & WS_CLIENT_;	// Resp. window slot; for latency
+			int rws = num_resp & WS_CLIENT_;	/* Resp. window slot */
 
-			// Poll for a recv
+			/* Poll for a recv */
 			int recv_comps = 0, tries = 0;
 			while(recv_comps == 0) {
 				recv_comps = hrd_rx_burst(cb, &rx_pkt, 1);
@@ -132,7 +132,7 @@ void *run_client(void *arg)
 				}
 			}
 
-			//printf("RX on qp %d\n", qp_i);
+			/* printf("RX on qp %d\n", qp_i); */
 
 			clock_gettime(CLOCK_REALTIME, &op_end[rws]);
 			total_nsec += (op_end[rws].tv_sec - op_start[rws].tv_sec)* 1000000000 
@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
 
 	hrd_ibv_devinfo();
 
-	srand48(getpid() * time(NULL));		//Required for PSN
+	srand48(getpid() * time(NULL));		/* Required for PSN */
 	
 	num_threads = atoi(argv[1]);
 

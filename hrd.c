@@ -1,12 +1,6 @@
 #include "hrd.h"
 
-#ifdef MEHCACHED_USE_IB
-// src/shm.h
-//void *mehcached_shm_malloc_contiguous(size_t size, size_t numa_node);
-void* rte_malloc_socket(const char *type, size_t size, unsigned align, int socket);
-#endif
-
-/**< Print information about all IB devices in the system */
+/* Print information about all IB devices in the system */
 void hrd_ibv_devinfo(void)
 {
 	int num_devices = 0, dev_i;
@@ -73,7 +67,7 @@ struct hrd_ctrl_blk *hrd_init_ctrl_blk(int id, int port_index, int node_id)
 
 	int device_id;
 
-	/**< Find the port with 0-based rank = ports_to_discover */
+	/* Find the port with 0-based rank = ports_to_discover */
 	for (device_id = 0; device_id < num_devices; device_id++) {
 
 		struct ibv_context *context = ibv_open_device(dev_list[device_id]);
@@ -108,7 +102,7 @@ struct hrd_ctrl_blk *hrd_init_ctrl_blk(int id, int port_index, int node_id)
 		}
 	}
 
-	/** < Found no suitable port */
+	/* Found no suitable port */
 	if (cb->device_id == -1) {
 		printf("invalid port index: %d\n", port_index);
 		assert(false);
@@ -118,7 +112,7 @@ struct hrd_ctrl_blk *hrd_init_ctrl_blk(int id, int port_index, int node_id)
 	ib_dev = dev_list[cb->device_id];
 	CPE(!ib_dev, "IB device not found", 0);
 
-	// Zero-out some fields
+	/* Zero-out some fields */
 	cb->recv_head = 0, cb->recv_tail = 0;
 	cb->send_count = 0;
 	cb->recv_area = NULL;
@@ -128,17 +122,19 @@ struct hrd_ctrl_blk *hrd_init_ctrl_blk(int id, int port_index, int node_id)
 	cb->context = ibv_open_device(ib_dev);
 	CPE(!cb->context, "Couldn't get context", 0);
 
-	// Create a protection domain
+	/* Create a protection domain */
 	cb->pd = ibv_alloc_pd(cb->context);
 	CPE(!cb->pd, "Couldn't allocate PD", 0);
 
-	// Allocate and register the receive area
+	/* Allocate and register the receive area */
 	int ib_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | 
 				IBV_ACCESS_REMOTE_WRITE;
 	int shm_flags = IPC_CREAT | 0666 | SHM_HUGETLB;
 
-	// Find the minimum number of hugepages required for registering
-	// as many mbufs as the datagram recv queue depth.
+	/*
+	 * Find the minimum number of hugepages required for registering as many
+	 * mbufs as the datagram recv queue depth.
+	 */
 	int reg_size = M_2;
 	while(reg_size < HRD_Q_DEPTH * sizeof(struct hrd_mbuf)) {
 		reg_size += M_2;
@@ -146,37 +142,34 @@ struct hrd_ctrl_blk *hrd_init_ctrl_blk(int id, int port_index, int node_id)
 	printf("Id %d: registering recv area of size %d bytes\n",
 		cb->id, reg_size);
 
-#ifndef MEHCACHED_USE_IB
 	int sid = shmget(HRD_BASE_SHM_KEY + cb->id, reg_size, shm_flags);
 	assert(sid >= 0);
 	cb->recv_area = shmat(sid, 0, 0);
-#else
-	//cb->recv_area = mehcached_shm_malloc_contiguous(reg_size, cb->node_id);
-	cb->recv_area = rte_malloc_socket(NULL, reg_size, 0, cb->node_id);
-#endif
 	assert(cb->recv_area != NULL);
 
 	cb->recv_area_mr = ibv_reg_mr(cb->pd,
 		(char *) cb->recv_area, reg_size, ib_flags);
 	assert(cb->recv_area_mr != NULL);
 
-	// Create qp and transition it to RTS
+	/* Create qp and transition it to RTS */
 	hrd_create_qp(cb);
 	hrd_modify_qp_to_rts(cb);
 
-	// Store the qp's attrs
+	/* Store the qp's attrs */
 	cb->local_qp_attrs.lid = hrd_get_local_lid(cb->context, cb->port_id);
 	cb->local_qp_attrs.qpn = cb->qp->qp_num;
 
-	/** < Allocate space for address handles for all possible CAs in the
-	  *   cluster. ibv_create_ah() will be called lazily on TX */
+	/*
+	 * Allocate space for address handles for all possible CAs in the cluster.
+	 * ibv_create_ah() will be called lazily on TX.
+	 */
 	cb->ah = malloc(HRD_MAX_LID * sizeof(void *));
 	memset(cb->ah, 0, HRD_MAX_LID * sizeof(void *));
 
-	// Create an array in cb for holding work completions
+	/* Create an array in cb for holding work completions */
 	cb->wc = malloc(HRD_Q_DEPTH * sizeof(struct ibv_wc));
 
-	// Fill the recv qp so that we're ready to process recvs
+	/* Fill the recv qp so that we're ready to process recvs */
 	hrd_post_recv(cb, HRD_Q_DEPTH);
 
 	return cb;
@@ -191,10 +184,11 @@ uint16_t hrd_rx_burst(struct hrd_ctrl_blk *cb, struct hrd_mbuf **rx_pkts,
 	for(i = 0; i < nb_pkts; i ++) {
 		CPE(cb->wc[i].status != IBV_WC_SUCCESS, "rx_burst poll_cq fail!\n", -1);
 
-		rx_pkts[i] = (struct hrd_mbuf*) &cb->recv_area[cb->recv_tail & HRD_Q_DEPTH_];
-		cb->recv_tail ++;		// long long: don't care about overflow
+		rx_pkts[i] = (struct hrd_mbuf*)
+			&cb->recv_area[cb->recv_tail & HRD_Q_DEPTH_];
+		cb->recv_tail ++;		/* long long: don't care about overflow */
 
-		// Add the route information
+		/* Add route information */
 		rx_pkts[i]->s_qpn = cb->wc[i].src_qp;
 		rx_pkts[i]->s_lid = cb->wc[i].slid;
 	}
@@ -222,8 +216,10 @@ void hrd_tx_burst(struct hrd_ctrl_blk *cb, struct hrd_mbuf **tx_pkts,
 		d_qpn = tx_pkts[i]->d_qpn;
 
 		if (cb->ah[d_lid] == NULL) {
-			/** XXX: this may have a race condition; use only one thread for an 
-			  * instance of struct hrd_ctrl_blk! */
+			/*
+			 * XXX: this may have a race condition; use only one thread for an 
+			 * instance of struct hrd_ctrl_blk!
+			 */
 			printf("First time using lid %d; creating ah\n", d_lid);
 			struct ibv_ah_attr ah_attr = {
 				.is_global		= 0,
@@ -240,8 +236,10 @@ void hrd_tx_burst(struct hrd_ctrl_blk *cb, struct hrd_mbuf **tx_pkts,
 		cb->wr.wr.ud.remote_qpn = d_qpn;
 		cb->wr.wr.ud.remote_qkey = 0x11111111;
 
-		// At the beginning of your window, post a signaled SEND. At the
-		// end of the window, poll for its completion.
+		/*
+		 * At the beginning of your window, post a signaled SEND. At the  end
+		 * of the window, poll for its completion.
+		 */
 		cb->wr.send_flags = (cb->send_count & HRD_SS_WINDOW_) == 0 ?
 			IBV_SEND_INLINE | IBV_SEND_SIGNALED : IBV_SEND_INLINE;
 		if((cb->send_count & HRD_SS_WINDOW_) == HRD_SS_WINDOW_) {
@@ -332,7 +330,7 @@ void hrd_create_qp(struct hrd_ctrl_blk *ctx)
 
 void hrd_modify_qp_to_rts(struct hrd_ctrl_blk *ctx)
 {
-	// Transition to init state
+	/* Transition to init state */
 	struct ibv_qp_attr init_attr = {
 		.qp_state		= IBV_QPS_INIT,
 		.pkey_index		= 0,
@@ -346,7 +344,7 @@ void hrd_modify_qp_to_rts(struct hrd_ctrl_blk *ctx)
 		return;
 	}
 
-	// Transition to ready-to-receive
+	/* Transition to ready-to-receive */
 	struct ibv_qp_attr rtr_attr = {
 		.qp_state		= IBV_QPS_RTR,
 	};
@@ -356,7 +354,7 @@ void hrd_modify_qp_to_rts(struct hrd_ctrl_blk *ctx)
 		exit(-1);
 	}
 	
-	// Re-use rtr_attr for transition to ready-to-send
+	/* Re-use rtr_attr for transition to ready-to-send */
 	rtr_attr.qp_state = IBV_QPS_RTS;
 	rtr_attr.sq_psn = lrand48() & 0xffffff;
 	
@@ -366,7 +364,7 @@ void hrd_modify_qp_to_rts(struct hrd_ctrl_blk *ctx)
 	}
 }
 
-// Post a RECV to a UD QP.
+/* Post a RECV to a UD QP */
 void hrd_post_recv(struct hrd_ctrl_blk *cb, int num_recvs)
 {
 	int ret;
@@ -422,7 +420,7 @@ void hrd_nano_sleep(int ns)
 	}
 }
 
-//Every process has only 1 datagram CQ
+/* Poll the CQ of this cb */
 void hrd_poll_send_cq(struct hrd_ctrl_blk *cb, int num_comps)
 {
 	struct ibv_wc wc;
@@ -439,7 +437,7 @@ void hrd_poll_send_cq(struct hrd_ctrl_blk *cb, int num_comps)
 	}
 }
 
-// Like printf, but red. Limited to 1000 characters.
+/* Like printf, but red. Limited to 1000 characters. */
 void hrd_red_printf(const char *format, ...)
 {	
 	#define RED_LIM 1000
@@ -452,18 +450,18 @@ void hrd_red_printf(const char *format, ...)
 
     va_start(args, format);
 
-	// Marshal the stuff to print in a buffer
+	/* Marshal the stuff to print in a buffer */
 	vsnprintf(buf1, RED_LIM, format, args);
 
-	// Probably a bad check for buffer overflow
+	/* Probably a bad check for buffer overflow */
 	for(i = RED_LIM - 1; i >= RED_LIM - 50; i --) {
 		assert(buf1[i] == 0);
 	}
 
-	// Add markers for red color and reset color
+	/* Add markers for red color and reset color */
 	snprintf(buf2, 1000, "\033[31m%s\033[0m", buf1);
 
-	// Probably another bad check for buffer overflow
+	/* Probably another bad check for buffer overflow */
 	for(i = RED_LIM - 1; i >= RED_LIM - 50; i --) {
 		assert(buf2[i] == 0);
 	}
@@ -473,22 +471,25 @@ void hrd_red_printf(const char *format, ...)
     va_end(args);
 }
 
-void hrd_register_qp(struct hrd_ctrl_blk *cb, char *registry_ip) 
+void hrd_register_qp(struct hrd_ctrl_blk *cb) 
 {
+	assert(cb != NULL);
+
 	memcached_server_st *servers = NULL;
-	memcached_st *memc;
+	memcached_st *memc = memcached_create(NULL);
 	memcached_return rc;
 
-	char *key = "servers";
+	char *key = "rdma_dpdk_servers";
 	char *value = (char *) &cb->local_qp_attrs;
 
 	printf("HRD: Id %d: Registering qp_attr: ", cb->id);
 	print_qp_attr(cb->local_qp_attrs);
 
 	memc = memcached_create(NULL);
-
-	// We run the server on the default memcached port: 11211
-	servers = memcached_server_list_append(servers, 
+	char *registry_ip = hrd_getenv("HRD_REGISTRY_IP");
+	
+	/* We run the memcached server on the default memcached port */
+	servers = memcached_server_list_append(servers,
 		registry_ip, MEMCACHED_DEFAULT_PORT, &rc);
 	rc = memcached_server_push(memc, servers);
 
@@ -504,15 +505,19 @@ void hrd_register_qp(struct hrd_ctrl_blk *cb, char *registry_ip)
 			memcached_strerror(memc, rc));
 		exit(-1);
 	}
+
+	/* Cleanup on clean exit */
+	memcached_quit(memc);
+	memcached_server_list_free(servers);
 }
 
-int hrd_get_registered_qps(struct hrd_ctrl_blk *cb, char *registry_ip)
+int hrd_get_registered_qps(struct hrd_ctrl_blk *cb)
 {
 	memcached_server_st *servers = NULL;
-	memcached_st *memc;
+	memcached_st *memc = memcached_create(NULL);
 	memcached_return rc;
 
-	char *key = "servers";
+	char *key = "rdma_dpdk_servers";
 	size_t value_length;
 	uint32_t flags;
 
@@ -520,12 +525,14 @@ int hrd_get_registered_qps(struct hrd_ctrl_blk *cb, char *registry_ip)
 
 	printf("HRD: Id %d: Fetching registered qps\n", cb->id);
 	memc = memcached_create(NULL);
+	char *registry_ip = hrd_getenv("HRD_REGISTRY_IP");
 
-	// We run the server on the default memcached port: 11211
+	/* We run the server on the default memcached port: 11211 */
 	servers = memcached_server_list_append(servers, 
 		registry_ip, MEMCACHED_DEFAULT_PORT, &rc);
 	rc = memcached_server_push(memc, servers);
 
+	cb->remote_qp_attrs = NULL;
 	cb->remote_qp_attrs = (struct hrd_qp_attr *) memcached_get(memc, 
 		key, strlen(key), &value_length, &flags, &rc);
 
@@ -536,13 +543,30 @@ int hrd_get_registered_qps(struct hrd_ctrl_blk *cb, char *registry_ip)
 		for(i = 0; i < num_qps; i ++) {
 			print_qp_attr(cb->remote_qp_attrs[i]);
 		}
+		
+		/* Cleanup on clean exit */
+		memcached_quit(memc);
+		memcached_server_list_free(servers);
 
 	} else {
+		/* No need to free memcached resources because we're dead */
 		printf("HRD: Id %d: Couldn't find registered qps: %s\n", cb->id,
 			memcached_strerror(memc, rc));
 		exit(-1);
 	}
 
 	return num_qps;
+}
+
+/* Return an environment variable if it is set */
+char *hrd_getenv(const char *name)
+{
+	char *env = getenv(name);
+	if(env == NULL) {
+		fprintf(stderr, "Environment variable %s not set\n", name);
+		exit(-1);
+	}
+
+	return env;
 }
 
