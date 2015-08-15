@@ -9,7 +9,6 @@ blue "Removing hugepages"
 shm-rm.sh 1>/dev/null 2>/dev/null
 
 num_server_threads=10
-num_client_machines=1
 : ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
 
 # Check if memccp and memcached are installed
